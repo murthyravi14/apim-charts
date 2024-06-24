@@ -7,6 +7,12 @@ metadata:
     chart: {{ template "portal.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    {{- range $key, $val := .Values.global.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
+    {{- range $key, $val := .Values.pssg.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
 spec:
   {{- if .Values.pssg.strategy }}
   strategy: {{- toYaml .Values.pssg.strategy | nindent 12 }}
@@ -19,6 +25,10 @@ spec:
     metadata:
       labels:
         app: pssg
+      {{ if .Values.pssg.forceRedeploy }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "portal.serviceAccountName" . }}
       {{- if .Values.pssg.affinity }}
@@ -27,8 +37,16 @@ spec:
       {{- if .Values.pssg.nodeSelector }}
       nodeSelector: {{- toYaml .Values.pssg.nodeSelector | nindent 12 }}
       {{- end }}
+      {{- if .Values.pssg.tolerations }}
+      tolerations: {{- toYaml .Values.pssg.tolerations | nindent 12 }}
+      {{- end }}
       {{- if .Values.global.schedulerName }}
       schedulerName: "{{ .Values.global.schedulerName }}"
+      {{- end }}
+      {{- if .Values.pssg.podSecurityContext }}
+      securityContext: {{- toYaml .Values.pssg.podSecurityContext | nindent 12 }}
+      {{- else if .Values.global.podSecurityContext }}
+      securityContext: {{- toYaml .Values.global.podSecurityContext | nindent 12 }}
       {{- end }}
       initContainers:
         - name: liquidbase-upgrade-portal
@@ -41,6 +59,11 @@ spec:
         - name: pssg
           image: "{{ .Values.global.portalRepository }}{{ .Values.image.pssg }}"
           imagePullPolicy: "{{ .Values.pssg.image.pullPolicy }}"
+          {{- if .Values.pssg.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.pssg.containerSecurityContext | nindent 12 }}
+          {{- else if .Values.global.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           env:
             - name: SSG_ADMIN_USERNAME
               valueFrom:
@@ -58,8 +81,6 @@ spec:
                   name: {{ .Values.global.databaseSecret }}
             {{ if eq .Values.global.databaseType "mysql" }}
                   key: mysql-password
-            {{ else if eq .Values.global.databaseType "postgres" }}
-                  key: postgres-password
             {{ end }}
             - name: APIM_SSL_KEY
               valueFrom:

@@ -7,6 +7,12 @@ metadata:
     chart: {{ template "portal.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    {{- range $key, $val := .Values.global.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
+    {{- range $key, $val := .Values.portalEnterprise.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
 spec:
   {{- if .Values.portalEnterprise.strategy }}
   strategy: {{- toYaml .Values.portalEnterprise.strategy | nindent 12 }}
@@ -19,6 +25,10 @@ spec:
     metadata:
       labels:
         app: portal-enterprise
+      {{ if .Values.portalEnterprise.forceRedeploy }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "portal.serviceAccountName" . }}
       {{- if .Values.portalEnterprise.affinity }}
@@ -27,8 +37,16 @@ spec:
       {{- if .Values.portalEnterprise.nodeSelector }}
       nodeSelector: {{- toYaml .Values.portalEnterprise.nodeSelector | nindent 12 }}
       {{- end }}
+      {{- if .Values.portalEnterprise.tolerations }}
+      tolerations: {{- toYaml .Values.portalEnterprise.tolerations | nindent 12 }}
+      {{- end }}
       {{- if .Values.global.schedulerName }}
       schedulerName: "{{ .Values.global.schedulerName }}"
+      {{- end }}
+      {{- if .Values.portalEnterprise.podSecurityContext }}
+      securityContext: {{- toYaml .Values.portalEnterprise.podSecurityContext | nindent 12 }}
+      {{- else if .Values.global.podSecurityContext }}
+      securityContext: {{- toYaml .Values.global.podSecurityContext | nindent 12 }}
       {{- end }}
       initContainers:
         - name: liquidbase-upgrade-portal
@@ -41,6 +59,11 @@ spec:
         - name: portal-enterprise
           image: "{{ .Values.global.portalRepository }}{{ .Values.image.enterprise }}"
           imagePullPolicy: "{{ .Values.portalEnterprise.image.pullPolicy }}"
+          {{- if .Values.portalEnterprise.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.portalEnterprise.containerSecurityContext | nindent 12 }}
+          {{- else if .Values.global.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           env:
             - name: RABBITMQ_DEFAULT_PASS
               valueFrom:
@@ -62,19 +85,12 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.portal.papi.secretName }}
                   key: papi-password
-            - name: GATEWAY_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.portal.internalSSG.secretName }}
-                  key: internal-ssg-username
             - name: ENTERPRISE_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.global.databaseSecret }}
             {{ if eq .Values.global.databaseType "mysql" }}
                   key: mysql-password
-            {{ else if eq .Values.global.databaseType "postgres" }}
-                  key: postgres-password
             {{ end }}
             - name: RBAC_DATABASE_PASSWORD
               valueFrom:
@@ -82,8 +98,6 @@ spec:
                   name: {{ .Values.global.databaseSecret }}
             {{ if eq .Values.global.databaseType "mysql" }}
                   key: mysql-password
-            {{ else if eq .Values.global.databaseType "postgres" }}
-                  key: postgres-password
             {{ end }}
             - name: SEARCH_DATABASE_PASSWORD
               valueFrom:
@@ -91,21 +105,12 @@ spec:
                   name: {{ .Values.global.databaseSecret }}
             {{ if eq .Values.global.databaseType "mysql" }}
                   key: mysql-password
-            {{ else if eq .Values.global.databaseType "postgres" }}
-                  key: postgres-password
             {{ end }}
-            - name: GATEWAY_PK
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.tls.internalSecretName }}
-                  key: pssg-ssl.p12
-                  optional: false
-            - name: GATEWAY_PK_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.tls.internalSecretName }}
-                  key: keypass.txt
-                  optional: false
+            # test only variables
+            - name: RBAC_CLIENT_CACHE_EXPIRY
+              value: "{{ .Values.portalEnterprise.RBAC_CLIENT_CACHE_EXPIRY }}"
+            - name: THEME_CACHE_EXPIRY
+              value: "{{ .Values.portalEnterprise.THEME_CACHE_EXPIRY }}"
           envFrom:
           - configMapRef:
               name: portal-enterprise-config
@@ -132,6 +137,9 @@ spec:
           {{- end }}
           ports:
             - containerPort: 8080
+            {{- if .Values.global.enableMetricEndpoints }}
+            - containerPort: 9999
+            {{ end }}
       {{- if .Values.global.pullSecret }}
       imagePullSecrets:
       - name: "{{ .Values.global.pullSecret }}"

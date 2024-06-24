@@ -7,6 +7,12 @@ metadata:
     chart: {{ template "portal.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    {{- range $key, $val := .Values.global.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
+    {{- range $key, $val := .Values.authenticator.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
 spec:
   {{- if .Values.authenticator.strategy }}
   strategy: {{- toYaml .Values.authenticator.strategy | nindent 12 }}
@@ -19,6 +25,10 @@ spec:
     metadata:
       labels:
         app: authenticator
+      {{ if .Values.authenticator.forceRedeploy }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "portal.serviceAccountName" . }}
       {{- if .Values.authenticator.affinity }}
@@ -27,8 +37,16 @@ spec:
       {{- if .Values.authenticator.nodeSelector }}
       nodeSelector: {{- toYaml .Values.authenticator.nodeSelector | nindent 12 }}
       {{- end }}
+      {{- if .Values.authenticator.tolerations }}
+      tolerations: {{- toYaml .Values.authenticator.tolerations | nindent 12 }}
+      {{- end }}
       {{- if .Values.global.schedulerName }}
       schedulerName: "{{ .Values.global.schedulerName }}"
+      {{- end }}
+      {{- if .Values.authenticator.podSecurityContext }}
+      securityContext: {{- toYaml .Values.authenticator.podSecurityContext | nindent 12 }}
+      {{- else if .Values.global.podSecurityContext }}
+      securityContext: {{- toYaml .Values.global.podSecurityContext | nindent 12 }}
       {{- end }}
       initContainers:
         - name: liquidbase-upgrade-portal
@@ -41,6 +59,11 @@ spec:
         - name: authenticator
           image: "{{ .Values.global.portalRepository }}{{ .Values.image.authenticator }}"
           imagePullPolicy: "{{ .Values.authenticator.image.pullPolicy }}"
+          {{- if .Values.authenticator.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.authenticator.containerSecurityContext | nindent 12 }}
+          {{- else if .Values.global.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           env:
             - name: RABBITMQ_PASSWORD
               valueFrom:
@@ -53,8 +76,6 @@ spec:
                   name: {{ .Values.global.databaseSecret }}
             {{ if eq .Values.global.databaseType "mysql" }}
                   key: mysql-password
-            {{ else if eq .Values.global.databaseType "postgres" }}
-                  key: postgres-password
             {{ end }}
           envFrom:
           - configMapRef:

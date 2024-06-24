@@ -7,11 +7,17 @@ metadata:
     chart: {{ template "portal.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    {{- range $key, $val := .Values.global.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
+    {{- range $key, $val := .Values.analytics.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
 spec:
   {{- if .Values.analytics.strategy }}
   strategy: {{- toYaml .Values.analytics.strategy | nindent 12 }}
   {{- end }}
-  {{- if and (eq .Values.portal.analytics.aggregation true) (lt .Values.analytics.replicaCount 2.0) }}
+  {{- if and (eq .Values.portal.analytics.aggregation true) (lt (.Values.analytics.replicaCount | int) 2) }}
   replicas: 2
   {{- else}}
   replicas: {{ .Values.analytics.replicaCount }}
@@ -23,6 +29,10 @@ spec:
     metadata:
       labels:
         app: analytics-server
+      {{ if .Values.analytics.forceRedeploy }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "portal.serviceAccountName" . }}
       {{- if .Values.analytics.affinity }}
@@ -31,8 +41,16 @@ spec:
       {{- if .Values.analytics.nodeSelector }}
       nodeSelector: {{- toYaml .Values.analytics.nodeSelector | nindent 12 }}
       {{- end }}
+      {{- if .Values.analytics.tolerations }}
+      tolerations: {{- toYaml .Values.analytics.tolerations | nindent 12 }}
+      {{- end }}
       {{- if .Values.global.schedulerName }}
       schedulerName: "{{ .Values.global.schedulerName }}"
+      {{- end }}
+      {{- if .Values.analytics.podSecurityContext }}
+      securityContext: {{- toYaml .Values.analytics.podSecurityContext | nindent 12 }}
+      {{- else if .Values.global.podSecurityContext }}
+      securityContext: {{- toYaml .Values.global.podSecurityContext | nindent 12 }}
       {{- end }}
       initContainers:
         - name: liquidbase-upgrade-portal
@@ -45,6 +63,11 @@ spec:
         - name: analytics-server
           image: "{{ .Values.global.portalRepository }}{{ .Values.image.analytics }}"
           imagePullPolicy: "{{ .Values.analytics.image.pullPolicy }}"
+          {{- if .Values.analytics.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.analytics.containerSecurityContext | nindent 12 }}
+          {{- else if .Values.global.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           env:
             - name: RABBITMQ_PASSWORD
               valueFrom:
@@ -67,8 +90,6 @@ spec:
                   name: {{ .Values.global.databaseSecret }}
             {{ if eq .Values.global.databaseType "mysql" }}
                   key: mysql-password
-            {{ else if eq .Values.global.databaseType "postgres" }}
-                  key: postgres-password
             {{ end }}
           envFrom:
           - configMapRef:

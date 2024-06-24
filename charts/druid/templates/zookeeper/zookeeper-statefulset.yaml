@@ -8,6 +8,12 @@ metadata:
     chart: {{ template "druid.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    {{- range $key, $val := .Values.global.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
+    {{- range $key, $val := .Values.zookeeper.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
 spec:
   serviceName: zookeeper
   replicas: {{ .Values.zookeeper.replicaCount }}
@@ -20,9 +26,12 @@ spec:
     metadata:
       labels:
         app: zookeeper
+      {{ if .Values.forceRedeploy }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "druid.serviceAccountName" . }}
-      terminationGracePeriodSeconds: 1800
       {{- if .Values.global.schedulerName }}
       schedulerName: "{{ .Values.global.schedulerName }}"
       {{- end }}
@@ -32,12 +41,26 @@ spec:
       {{- if .Values.zookeeper.nodeSelector }}
       nodeSelector: {{- toYaml .Values.zookeeper.nodeSelector | nindent 12 }}
       {{- end }}
+      {{- if .Values.zookeeper.tolerations }}
+      tolerations: {{- toYaml .Values.zookeeper.tolerations | nindent 12 }}
+      {{- end }}
+      {{- if .Values.zookeeper.podSecurityContext }}
+      securityContext: {{- toYaml .Values.zookeeper.podSecurityContext | nindent 12 }}
+      {{- else if .Values.global.podSecurityContext }}
+      securityContext: {{- toYaml .Values.global.podSecurityContext | nindent 12 }}
+      {{- else }}
       securityContext:
         fsGroup: 1010
+      {{- end }}
       containers:
         - name: zookeeper
           image: "{{ .Values.global.portalRepository }}{{ .Values.image.zookeeper }}"
           imagePullPolicy: "{{ .Values.zookeeper.image.pullPolicy }}"
+          {{- if .Values.zookeeper.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.zookeeper.containerSecurityContext | nindent 12 }}
+          {{- else if .Values.global.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           ports:
           - containerPort: 2181
           - containerPort: 2888

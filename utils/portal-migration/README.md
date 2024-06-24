@@ -1,5 +1,5 @@
 # Migrate from Docker Swarm or Helm 2 Chart (v4.4 and above)
-This migration assumes that you have an external MySQL Deployment that is accessible by both Docker Swarm and your Kubernetes Cluster. This guide has not been tested against Postgres. If you are using Postgres outside of your development environment, Broadcom recommends that you migrate to MySQL. 
+This migration assumes that you have an external MySQL Deployment that is accessible by both Docker Swarm and your Kubernetes Cluster.  If you are not using MySQL for your development environment, Broadcom recommends that you migrate to MySQL. 
 
 * [Docker Swarm](#migrate-from-docker-swarm)
 * [Helm 2 Chart](#migrate-from-helm2)
@@ -209,6 +209,7 @@ $ mc mirror /opt/api-metrics portal/$BUCKET_NAME
 
 4. [Restart Analytics Services](#restart-analytics-services)
 
+
 ### Using Cloud Storage
 We have exposed this Minio functionality in Kubernetes, if you would like to use Amazon S3, Google GCS, or Azure Blob Storage then simply do the following tasks
 1. Go to your chosen cloud storage provider.
@@ -239,6 +240,13 @@ $ kubectl rollout restart statefulset coordinator -n <namespace>
 
 $ kubectl rollout restart statefulset middlemanager -n <namespace>
 ```
+Connect to the Coordinator pods and reset the supervisors using the following curl commands
+```
+$ kubectl exec -it <coordinator> -n <namespace> sh
+Run below commands to reset  
+$ curl -X POST  http://localhost:8081/druid/indexer/v1/supervisor/apim_metrics/reset
+$ curl -X POST  http://localhost:8081/druid/indexer/v1/supervisor/apim_metrics_hour/reset
+```
 
 
 ## RBAC Settings
@@ -268,7 +276,7 @@ ingress-nginx.rbac.create: <true|false>
 
 ## Troubleshooting
 This section will be updated as we encounter problems related to installing/migrating the Portal to this form factor
-- These guides do not currently include migrating MySQL/PostgresSQL databases.
+- These guides do not include migrating from other databases to MySQL.
 - Please raise a support ticket with Broadcom if you encounter problems, raising a bug/feature request against this repository in parallel should result in faster turnaround.
 
 ### Unable to initialize new alias

@@ -7,6 +7,12 @@ metadata:
     chart: {{ template "portal.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    {{- range $key, $val := .Values.global.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
+    {{- range $key, $val := .Values.tenantProvisioner.additionalLabels }}
+    {{ $key }}: "{{ $val }}"
+    {{- end }}
 spec:
   replicas: {{ .Values.tenantProvisioner.replicaCount }}
   selector:
@@ -19,6 +25,10 @@ spec:
     metadata:
       labels:
         app: tenant-provisioner
+      {{ if .Values.tenantProvisioner.forceRedeploy }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "portal.serviceAccountName" . }}
       {{- if .Values.tenantProvisioner.affinity }}
@@ -27,9 +37,17 @@ spec:
       {{- if .Values.tenantProvisioner.nodeSelector }}
       nodeSelector: {{- toYaml .Values.tenantProvisioner.nodeSelector | nindent 12 }}
       {{- end }}
+      {{- if .Values.tenantProvisioner.tolerations }}
+      tolerations: {{- toYaml .Values.tenantProvisioner.tolerations | nindent 12 }}
+      {{- end }}
       {{- if .Values.global.schedulerName }}
       schedulerName: "{{ .Values.global.schedulerName }}"
       {{- end }}
+      {{- if .Values.tenantProvisioner.podSecurityContext }}
+      securityContext: {{- toYaml .Values.tenantProvisioner.podSecurityContext | nindent 12 }}
+      {{- else if .Values.global.podSecurityContext }}
+      securityContext: {{- toYaml .Values.global.podSecurityContext | nindent 12 }}
+      {{- end }}      
       initContainers:
         - name: liquidbase-upgrade-portal
           image: "{{ .Values.global.portalRepository }}{{ .Values.image.upgradeVerify }}"
@@ -41,6 +59,11 @@ spec:
         - name: tenant-provisioner-service
           image: "{{ .Values.global.portalRepository }}{{ .Values.image.tps }}"
           imagePullPolicy: "{{ .Values.tenantProvisioner.image.pullPolicy }}"
+          {{- if .Values.tenantProvisioner.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.tenantProvisioner.containerSecurityContext | nindent 12 }}
+          {{- else if .Values.global.containerSecurityContext }}
+          securityContext: {{- toYaml .Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 9000
               protocol: TCP
@@ -78,8 +101,6 @@ spec:
                   name: {{ .Values.global.databaseSecret }}
             {{ if eq .Values.global.databaseType "mysql" }}
                   key: mysql-password
-            {{ else if eq .Values.global.databaseType "postgres" }}
-                  key: postgres-password
             {{ end }}
             - name: TPS_SSL_CERT
               valueFrom:
