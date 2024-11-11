@@ -3,6 +3,22 @@ The Layer7 API Developer Portal (API Portal) is part of the Layer7 API Managemen
 
 ## Introduction
 This Chart deploys the Layer7 API Developer Portal on a Kubernetes Cluster using the Helm Package Manager.
+
+## Release Notes
+
+## 2.3.11 General Updates
+- Added a preflight check (initContainer) for the core apim/ingress deployment
+  - This resolves a race condition that occurs on slower hardware where apim/ingress starts before other dependent services are ready. 
+  - This is ***enabled by default***. A Helm upgrade will restart the apim deployment.
+    - If you wish to disable this, set apim.preflightCheck.enabled to false
+    ```
+    apim:
+      ...
+      preflightCheck:
+        enabled: true
+      ...
+    ```
+
 ## 2.3.10 General Updates
 - This new version of the chart supports API Portal 5.3.1
 - Removed PSSG container
@@ -302,6 +318,7 @@ This section describes configurable parameters in **values.yaml**, there is also
 | `analytics.affinity`                 | Affinity for pod assignment                                  | `{} evaluated as a template`                                 |
 | `analytics.additionalLabels`         | A list of custom key: value labels                           | `not set`                                                    |
 | `apim.forceRedeploy`                 | Force redeployment during helm upgrade whether there is a change or not | `false`                                                      |
+| `apim.preflightCheck.enabled`        | Resolves a race condition that occurs on slower hardware where apim/ingress starts before other dependent services are ready |`true`                                                      |
 | `apim.replicaCount`                  | Number of APIM nodes                                         | `1`                                                          |
 | `apim.image.pullPolicy`              | APIM image pull policy                                       | `IfNotPresent`                                               |
 | `apim.otkDb.name`                    | APIM OTK Database name                                       | `otk_db`                                                     |
