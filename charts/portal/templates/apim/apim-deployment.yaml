@@ -62,9 +62,7 @@ spec:
           args:
           - sleep 120;
             if [[ "$(curl -w '%{http_code}' -s -o /dev/null rabbitmq:15672)" != "200" ]]; then echo "broker not ready" && exit 1;fi;
-            if [[ "$(curl -w '%{http_code}' -s -o /dev/null portal-data:8080/portal-data/portalHealth)" != "200" ]]; then echo "portal-data not ready" && exit 1;fi;
             if [[ "$(curl -w '%{http_code}' -s -o /dev/null http://authenticator:9081/v1/echo;)" != "200" ]]; then echo "authenticator not ready" && exit 1;fi;
-            if [[ "$(curl -w '%{http_code}' -s -o /dev/null  http://tenant-provisioner:9001/actuator/health)" != "200" ]]; then echo "tenant provisioning service not ready" && exit 1;fi;
         {{- end }}
       containers:
         - name: apim
