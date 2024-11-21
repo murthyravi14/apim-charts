@@ -3,6 +3,25 @@ The Layer7 API Developer Portal (API Portal) is part of the Layer7 API Managemen
 
 ## Introduction
 This Chart deploys the Layer7 API Developer Portal on a Kubernetes Cluster using the Helm Package Manager.
+
+## Release Notes
+
+## 2.3.11 General Updates
+- Added a preflight check (initContainer) for the core apim/ingress deployment
+  - This resolves a race condition that occurs on slower hardware where apim/ingress starts before other dependent services are ready. 
+  - This is ***enabled by default***.
+    - This only gets added when you install the Chart.
+      - A Helm upgrade will ***NOT*** restart the apim deployment if you have already installed the Chart and are upgrading to this version.
+      - A Helm upgrade will restart the apim deployment if you installed from this version and upgrade the Chart.
+    - If you wish to disable this, set apim.preflightCheck.enabled to false
+    ```
+    apim:
+      ...
+      preflightCheck:
+        enabled: true
+      ...
+    ```
+
 ## 2.3.10 General Updates
 - This new version of the chart supports API Portal 5.3.1
 - Removed PSSG container
@@ -302,6 +321,7 @@ This section describes configurable parameters in **values.yaml**, there is also
 | `analytics.affinity`                 | Affinity for pod assignment                                  | `{} evaluated as a template`                                 |
 | `analytics.additionalLabels`         | A list of custom key: value labels                           | `not set`                                                    |
 | `apim.forceRedeploy`                 | Force redeployment during helm upgrade whether there is a change or not | `false`                                                      |
+| `apim.preflightCheck.enabled`        | Resolves a race condition that occurs on slower hardware where apim/ingress starts before other dependent services are ready |`true`                                                      |
 | `apim.replicaCount`                  | Number of APIM nodes                                         | `1`                                                          |
 | `apim.image.pullPolicy`              | APIM image pull policy                                       | `IfNotPresent`                                               |
 | `apim.otkDb.name`                    | APIM OTK Database name                                       | `otk_db`                                                     |
@@ -979,7 +999,6 @@ If the RabbitMQ cluster is stopped or removed out of order, there is a chance th
 $ helm upgrade <release-name> --set-file <values-from-install> --set <values-from-install> -f <my-values.yaml> layer7/portal
 ```
 
-
 ### Helm UPGRADE FAILED: cannot patch "db-upgrade" and "rbac-upgrade"
 If helm upgrade of the portal fails with error "Error: UPGRADE FAILED: cannot patch 'db-upgrade'", it is becasue of the limitation in kubernetes where a job can not be updated.
 
@@ -993,7 +1012,6 @@ $ kubectl get jobs -n  <nameSpace>
 kubectl delete job db-upgrade -n <nameSpace>
 kubectl delete job rbac-upgrade -n <nameSpace>
 ```
-
 
 ### MySQL container in unhealthy state
 
