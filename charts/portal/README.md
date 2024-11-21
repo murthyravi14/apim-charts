@@ -9,7 +9,10 @@ This Chart deploys the Layer7 API Developer Portal on a Kubernetes Cluster using
 ## 2.3.11 General Updates
 - Added a preflight check (initContainer) for the core apim/ingress deployment
   - This resolves a race condition that occurs on slower hardware where apim/ingress starts before other dependent services are ready. 
-  - This is ***enabled by default***. A Helm upgrade will restart the apim deployment.
+  - This is ***enabled by default***.
+    - This only gets added when you install the Chart.
+      - A Helm upgrade will ***NOT*** restart the apim deployment if you have already installed the Chart and are upgrading to this version.
+      - A Helm upgrade will restart the apim deployment if you installed from this version and upgrade the Chart.
     - If you wish to disable this, set apim.preflightCheck.enabled to false
     ```
     apim:
@@ -996,18 +999,6 @@ If the RabbitMQ cluster is stopped or removed out of order, there is a chance th
 $ helm upgrade <release-name> --set-file <values-from-install> --set <values-from-install> -f <my-values.yaml> layer7/portal
 ```
 
-### The APIM Container fails to start because RabbitMQ is unavailable
-In Portal Chart version 2.3.11 an initContainer was added to the apim deployment to resolve a race condition with slower hardware. If RabbitMQ does not start correctly for one of the reasons above and you wish to use the Portal API without it, then the initContainer can be disabled which should allow apim to start.
-
-- set apim.preflightCheck.enabled to false
-```
-apim:
-  ...
-  preflightCheck:
-    enabled: false
-  ...
-```
-
 ### Helm UPGRADE FAILED: cannot patch "db-upgrade" and "rbac-upgrade"
 If helm upgrade of the portal fails with error "Error: UPGRADE FAILED: cannot patch 'db-upgrade'", it is becasue of the limitation in kubernetes where a job can not be updated.
 
@@ -1021,7 +1012,6 @@ $ kubectl get jobs -n  <nameSpace>
 kubectl delete job db-upgrade -n <nameSpace>
 kubectl delete job rbac-upgrade -n <nameSpace>
 ```
-
 
 ### MySQL container in unhealthy state
 
