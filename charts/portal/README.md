@@ -996,6 +996,17 @@ If the RabbitMQ cluster is stopped or removed out of order, there is a chance th
 $ helm upgrade <release-name> --set-file <values-from-install> --set <values-from-install> -f <my-values.yaml> layer7/portal
 ```
 
+### The APIM Container fails to start because RabbitMQ is unavailable
+In Portal Chart version 2.3.11 an initContainer was added to the apim deployment to resolve a race condition with slower hardware. If RabbitMQ does not start correctly for one of the reasons above and you wish to use the Portal API without it, then the initContainer can be disabled which should allow apim to start.
+
+- set apim.preflightCheck.enabled to false
+```
+apim:
+  ...
+  preflightCheck:
+    enabled: false
+  ...
+```
 
 ### Helm UPGRADE FAILED: cannot patch "db-upgrade" and "rbac-upgrade"
 If helm upgrade of the portal fails with error "Error: UPGRADE FAILED: cannot patch 'db-upgrade'", it is becasue of the limitation in kubernetes where a job can not be updated.
